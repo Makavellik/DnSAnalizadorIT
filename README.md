@@ -1,0 +1,2 @@
+# DnSAnalizadorIT-Plataforma-Integral-de-An-lisis-de-Infraestructura-Digital
+**DnSAnalizadorIT** es una herramienta poderosa, interactiva y automatizada de análisis OSINT  orientada a la exploración, verificación y mapeo de infraestructura digital relacionada con dominios, IPs y servicios expuestos. Fue diseñada pensando en profesionales de ciberseguridad, administradores de red, analistas forenses y entusiastas
