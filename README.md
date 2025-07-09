@@ -1,3 +1,8 @@
+
+<p align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Orbitron&pause=1000&color=00FF99&center=true&vCenter=true&width=435&lines=DDDDDNSAnalizadorIT+-+Scanner+Multidimensional;Deep+Fingerprinting+%F0%9F%94%8D;SSL%2FWhois%2FCDN%2FDNS+%2B+Tracker+Detection;Energ%C3%ADa+Simb%C3%B3tica+Activa+%E2%9C%A8" alt="Typing SVG" />
+</p>
+
 ## 🎯 Objetivos de la Herramienta
 
 - Realizar consultas DNS en paralelo para múltiples tipos de registros.
