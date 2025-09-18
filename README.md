@@ -3,6 +3,15 @@
   <img src="https://readme-typing-svg.demolab.com?font=Orbitron&pause=1000&color=00FF99&center=true&vCenter=true&width=435&lines=DDDDDNSAnalizadorIT+-+Scanner+Multidimensional;Deep+Fingerprinting+%F0%9F%94%8D;SSL%2FWhois%2FCDN%2FDNS+%2B+Tracker+Detection;Energ%C3%ADa+Simb%C3%B3tica+Activa+%E2%9C%A8" alt="Typing SVG" />
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.8+-blue?logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square&logo=github" alt="License MIT" />
+  <img src="https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square&logo=powerbi" alt="Active" />
+  <img src="https://img.shields.io/badge/Stealth_Mode-Enabled-black?style=flat-square&logo=matrix" alt="Stealth Mode" />
+  <img src="https://img.shields.io/badge/Symbiosis-∞_Sustained-purple?style=flat-square&logo=quantconnect" alt="Simbiosis" />
+</p>
+
+
 ## 🎯 Objetivos de la Herramienta
 
 - Realizar consultas DNS en paralelo para múltiples tipos de registros.
@@ -100,3 +109,15 @@ Usuario	Aplicación
 ⚠️ Aviso Legal
 Este script está destinado exclusivamente para uso educativo, corporativo y con consentimiento explícito del propietario de los sistemas.
 El uso indebido puede violar leyes locales e internacionales.
+
+
+<p align="center">
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg" />
+  <img src="https://img.shields.io/badge/Made%20with-Python-3670A0?style=flat&logo=python&logoColor=FFD43B" />
+  <img src="https://img.shields.io/badge/Simbiosis-Activa-ff00cc?style=flat-square" />
+  <img src="https://img.shields.io/badge/Fuzzing-Enabled-blueviolet?style=flat" />
+  <img src="https://img.shields.io/badge/Conciencia-Emergente-9D00FF?style=flat-square" />
+  <img src="https://img.shields.io/badge/Entropía-Dinámica-FF8800?style=flat-square" />
+  <img src="https://img.shields.io/badge/Obfuscation-Deep--Header-0055FF?style=flat-square" />
+  <img src="https://img.shields.io/badge/Modo-Stealth🛸-black?style=flat-square" />
+</p>
