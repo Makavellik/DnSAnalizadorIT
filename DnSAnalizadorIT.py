@@ -489,84 +489,95 @@ def registros_dns(dominio):
 
 
 # --- Evasión de detección DNS ---
-def evasion_dns_multiservidor(dominio, registros_custom=None, exportar_json=False):
+def evasion_dns_multiservidor(dominio, registros_custom=None, exportar_json=False, comparar_tipos=("A",)):
     servidores = [
         "1.1.1.1", "1.0.0.1",         # Cloudflare
         "8.8.8.8", "8.8.4.4",         # Google
         "9.9.9.9", "149.112.112.112", # Quad9
         "208.67.222.222", "208.67.220.220", # OpenDNS
         "185.228.168.9", "64.6.64.6", # CleanBrowsing y Verisign
-        "94.140.14.14",              # AdGuard
-        "76.76.2.0",                 # Control D
+        "94.140.14.14",               # AdGuard
+        "76.76.2.0",                  # Control D
     ]
 
     tipos_registros = registros_custom or ['A', 'AAAA', 'CNAME', 'TXT', 'MX', 'NS', 'SOA']
     resultados = defaultdict(lambda: defaultdict(list))
-    tiempos = {}
-    inconsistencias = defaultdict(list)
-    errores = {}
+    tiempos, errores, inconsistencias = {}, {}, defaultdict(list)
 
     def validar_dns(srv):
         try:
             with socket.create_connection((srv, 53), timeout=2):
                 return True
-        except:
+        except Exception:
             return False
 
     def fingerprint(data_list):
-        data_str = "|".join(sorted(data_list))
+        if not data_list:
+            return "VACÍO"
+        data_str = "|".join(sorted(set(data_list)))
         return hashlib.sha256(data_str.encode()).hexdigest()[:12].upper()
 
     def consulta(srv, dom):
-        time.sleep(random.uniform(0.1, 0.5))  # Jitter evasivo
+        # Jitter evasivo
+        time.sleep(random.uniform(0.05, 0.3))
         inicio = time.time()
+        respuesta_servidor = {}
         try:
             res = dns.resolver.Resolver()
             res.nameservers = [srv]
             res.lifetime = random.uniform(2.5, 4.5)
             res.timeout = res.lifetime
-            respuesta_servidor = {}
 
             for tipo in tipos_registros:
                 try:
                     registros = res.resolve(dom, tipo, raise_on_no_answer=False)
                     if registros.rrset:
-                        respuesta_servidor[tipo] = [str(r.to_text()) for r in registros]
+                        valores = [str(r.to_text()) for r in registros]
+                        respuesta_servidor[tipo] = valores
                 except dns.resolver.NoAnswer:
                     continue
                 except Exception as e:
-                    respuesta_servidor[tipo] = [f"❌ Error: {str(e)}"]
+                    respuesta_servidor[tipo] = [f"❌ {str(e)}"]
 
             tiempos[srv] = round(time.time() - inicio, 3)
-            return srv, respuesta_servidor
         except Exception as e:
             errores[srv] = str(e)
-            return srv, {"Error": [str(e)]}
+            return srv, {"Error": [f"❌ {str(e)}"]}
+        return srv, respuesta_servidor
 
-    # Validar servidores antes de lanzar consultas
+    # Validar servidores antes de consultas
     servidores_validos = [s for s in servidores if validar_dns(s)]
-    random.shuffle(servidores_validos)  # Obfuscación del orden
+    if not servidores_validos:
+        console.print("[red bold]❌ Ningún servidor DNS válido.[/red bold]")
+        return
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(servidores_validos)) as executor:
+    random.shuffle(servidores_validos)  # Obfuscación
+    max_workers = min(10, len(servidores_validos))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(consulta, srv, dominio): srv for srv in servidores_validos}
         for future in concurrent.futures.as_completed(futures):
             servidor, resultado = future.result()
             for tipo, valores in resultado.items():
                 resultados[servidor][tipo] = valores
 
-    # Comparar fingerprints del registro A para inconsistencias
-    baseline_fp = None
-    for srv, datos in resultados.items():
-        if 'A' in datos and datos['A']:
-            baseline_fp = fingerprint(datos['A'])
-            break
-
-    if baseline_fp:
+    # Comparar fingerprints de registros críticos
+    fingerprints_base = {}
+    for tipo in comparar_tipos:
         for srv, datos in resultados.items():
-            if 'A' in datos and datos['A']:
-                current_fp = fingerprint(datos['A'])
-                if current_fp != baseline_fp:
-                    inconsistencias[srv].append("⚠ Diferencia en registro A")
+            if tipo in datos and datos[tipo]:
+                fingerprints_base[tipo] = fingerprint(datos[tipo])
+                break
+
+    for tipo in comparar_tipos:
+        base_fp = fingerprints_base.get(tipo)
+        if not base_fp:
+            continue
+        for srv, datos in resultados.items():
+            if tipo in datos and datos[tipo]:
+                current_fp = fingerprint(datos[tipo])
+                if current_fp != base_fp:
+                    inconsistencias[srv].append(f"⚠ Diferencia en {tipo}")
 
     # Tabla de resultados
     table = Table(title=f"🛡️ Análisis DNS Multiservidor - {dominio}", box=box.SQUARE)
@@ -576,7 +587,7 @@ def evasion_dns_multiservidor(dominio, registros_custom=None, exportar_json=Fals
 
     for srv in resultados:
         respuesta = "\n".join(
-            f"[bold yellow]{tipo}[/bold yellow]: {', '.join(valores)}"
+            f"[yellow]{tipo}[/yellow]: {', '.join(valores)}"
             for tipo, valores in resultados[srv].items()
         ) or "[red]Sin respuesta[/red]"
         if srv in inconsistencias:
@@ -586,34 +597,36 @@ def evasion_dns_multiservidor(dominio, registros_custom=None, exportar_json=Fals
 
     console.print(table)
 
-    # Errores por servidor
+    # Reportes
     if errores:
-        console.print(f"\n[red bold]{timestamp()} ❌ Errores encontrados en algunos servidores:[/red bold]")
+        console.print(f"\n[red bold]{timestamp()} ❌ Errores encontrados:[/red bold]")
         for srv, err in errores.items():
             console.print(f" - {srv}: {err}")
 
-    # Inconsistencias detectadas
     if inconsistencias:
         console.print(f"\n[red bold]{timestamp()} ⚠️ Inconsistencias DNS detectadas:[/red bold]")
         for srv, issues in inconsistencias.items():
             for issue in issues:
                 console.print(f" - {srv}: {issue}")
     else:
-        console.print(f"\n[green bold]{timestamp()} ✅ Sin inconsistencias DNS detectadas.[/green bold]")
+        console.print(f"\n[green bold]{timestamp()} ✅ Sin inconsistencias detectadas.[/green bold]")
 
-    # Exportar JSON si se desea
+    # Exportar JSON más detallado
     if exportar_json:
         resultado_json = {
             "dominio": dominio,
             "timestamp": timestamp(),
+            "servidores_consultados": servidores_validos,
             "resultados": resultados,
             "tiempos": tiempos,
             "errores": errores,
             "inconsistencias": inconsistencias,
+            "fingerprints": {t: fingerprints_base.get(t, None) for t in comparar_tipos}
         }
-        with open(f"dns_{dominio.replace('.', '_')}.json", "w") as f:
+        fname = f"dns_{dominio.replace('.', '_')}.json"
+        with open(fname, "w") as f:
             json.dump(resultado_json, f, indent=4)
-        console.print(f"\n[blue]📄 Resultados exportados a [bold]dns_{dominio.replace('.', '_')}.json[/bold][/blue]")
+        console.print(f"\n[blue]📄 Exportado a [bold]{fname}[/bold][/blue]")
 
 # --- Escaneo de puertos con Nmap ---
 def escanear_puertos(ip, puertos="1-1024", udp=False, detectar_vulnerabilidades=False, scripts_extra=None, verbose=True):
@@ -733,3 +746,4 @@ def menuprincipal():
 if __name__ == "__main__":
     bcinematico("ByMakaveli")
     menuprincipal()
+
