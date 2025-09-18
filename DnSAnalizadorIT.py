@@ -279,9 +279,9 @@ def geolocalizar_ip(ip):
 
 
 # --- Certificado SSL ---
-def verificar_certificado_ssl(dominio):
+def verificar_certificado_ssl(dominio, exportar_json=False):
     try:
-        # Paso 1: Validar que el puerto 443 esté abierto
+        # 🚦 Paso 0: Validar accesibilidad
         try:
             socket.create_connection((dominio, 443), timeout=3).close()
         except Exception:
@@ -297,9 +297,6 @@ def verificar_certificado_ssl(dominio):
                 cert = ssock.getpeercert()
                 protocolo_tls = ssock.version() or "Desconocido"
 
-                # Algoritmo de firma (puede no estar disponible en todos)
-                sig_alg = cert.get('signatureAlgorithm', 'Desconocido')
-
                 # Emisor y sujeto
                 issuer = dict(x[0] for x in cert.get('issuer', []))
                 subject = dict(x[0] for x in cert.get('subject', []))
@@ -308,40 +305,71 @@ def verificar_certificado_ssl(dominio):
                 not_after = datetime.strptime(cert['notAfter'], "%b %d %H:%M:%S %Y %Z")
                 dias_restantes = (not_after - datetime.utcnow()).days
 
-                # Estado del certificado
                 estado = "[green]✔ Válido[/green]" if dias_restantes > 0 else "[red]✘ Expirado[/red]"
                 urgencia = ""
-                if 0 < dias_restantes <= 10:
-                    urgencia = "[yellow]⚠ Vence pronto[/yellow]"
+                if 0 < dias_restantes <= 30:
+                    urgencia = "[yellow]⚠ Vence en menos de 30 días[/yellow]"
 
-                # SAN
+                # SAN (Subject Alternative Names)
                 san = cert.get('subjectAltName', [])
                 san_list = [s[1] for s in san if s[0] == 'DNS']
                 san_text = "\n  - ".join(san_list) if san_list else "N/A"
 
-                # Identificar CA raíz
+                # CA y autofirmado
                 ca_issuer = issuer.get('organizationName', 'N/A')
                 auto_firmado = subject == issuer
                 tipo_cert = "Auto-firmado" if auto_firmado else "Emitido por CA"
 
-                # Fingerprint SHA-1
+                # Fingerprints múltiples
                 fingerprint_sha1 = hashlib.sha1(cert_bin).hexdigest().upper()
+                fingerprint_sha256 = hashlib.sha256(cert_bin).hexdigest().upper()
 
+                # Intento de extraer info extra (solo si está disponible)
+                sig_alg = cert.get('signatureAlgorithm', 'N/D')
+                version_cert = cert.get('version', 'N/D')
+
+                # Panel visual quirúrgico
                 panel_texto = (
-                    f"[bold green]Dominio:[/bold green] {dominio}\n"
-                    f"[bold cyan]Organización (Emisor):[/bold cyan] {ca_issuer}\n"
-                    f"[bold cyan]Emitido a:[/bold cyan] {subject.get('commonName', 'N/A')}\n"
-                    f"[bold cyan]Tipo de Certificado:[/bold cyan] {tipo_cert}\n"
-                    f"[bold cyan]Versión TLS:[/bold cyan] {protocolo_tls}\n"
-                    f"[bold cyan]Algoritmo de Firma:[/bold cyan] {sig_alg}\n"
-                    f"[bold cyan]Válido desde:[/bold cyan] {not_before.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                    f"[bold cyan]Válido hasta:[/bold cyan] {not_after.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                    f"[bold cyan]Días restantes:[/bold cyan] {dias_restantes} días → {estado} {urgencia}\n"
-                    f"[bold cyan]Fingerprint SHA-1:[/bold cyan] {fingerprint_sha1}\n"
-                    f"[bold cyan]SAN (Nombres Alternativos):[/bold cyan]\n  - {san_text}"
+                    f"[bold green]🌍 Dominio:[/bold green] {dominio}\n"
+                    f"[cyan]🏢 Organización (Emisor):[/cyan] {ca_issuer}\n"
+                    f"[cyan]👤 Emitido a:[/cyan] {subject.get('commonName', 'N/A')}\n"
+                    f"[cyan]📜 Tipo de Certificado:[/cyan] {tipo_cert}\n\n"
+                    f"[cyan]🔑 Versión TLS:[/cyan] {protocolo_tls}\n"
+                    f"[cyan]🧬 Algoritmo de Firma:[/cyan] {sig_alg}\n"
+                    f"[cyan]📂 Versión del Certificado:[/cyan] {version_cert}\n\n"
+                    f"[cyan]📅 Válido desde:[/cyan] {not_before.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"[cyan]📅 Válido hasta:[/cyan] {not_after.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"[cyan]⏳ Días restantes:[/cyan] {dias_restantes} → {estado} {urgencia}\n\n"
+                    f"[cyan]🔒 Fingerprint SHA-1:[/cyan] {fingerprint_sha1}\n"
+                    f"[cyan]🔒 Fingerprint SHA-256:[/cyan] {fingerprint_sha256}\n\n"
+                    f"[cyan]🌐 SAN (Nombres Alternativos):[/cyan]\n  - {san_text}"
                 )
 
-                console.print(Panel(panel_texto, title="🔐 Certificado SSL Avanzado", box=box.DOUBLE, border_style="bright_green"))
+                console.print(Panel(panel_texto, title="🔐 Certificado SSL Quirúrgico", 
+                                    box=box.DOUBLE_EDGE, border_style="bright_green"))
+
+                # 📂 Exportación JSON opcional
+                if exportar_json:
+                    archivo = f"ssl_{dominio.replace('.', '_')}.json"
+                    salida = {
+                        "dominio": dominio,
+                        "emisor": ca_issuer,
+                        "emitido_a": subject,
+                        "tipo_cert": tipo_cert,
+                        "tls_version": protocolo_tls,
+                        "algoritmo_firma": sig_alg,
+                        "version_cert": version_cert,
+                        "not_before": not_before.isoformat(),
+                        "not_after": not_after.isoformat(),
+                        "dias_restantes": dias_restantes,
+                        "estado": estado,
+                        "fingerprint_sha1": fingerprint_sha1,
+                        "fingerprint_sha256": fingerprint_sha256,
+                        "san": san_list
+                    }
+                    with open(archivo, "w", encoding="utf-8") as f:
+                        json.dump(salida, f, indent=4, ensure_ascii=False)
+                    console.print(f"[blue]📄 Resultados exportados a [bold]{archivo}[/bold][/blue]")
 
     except ssl.SSLError as ssl_error:
         console.print(f"[red]⚠️ Error SSL al conectar con {dominio}:[/red] {ssl_error}")
@@ -352,7 +380,6 @@ def verificar_certificado_ssl(dominio):
     except Exception as e:
         console.print(f"[red]❌ Error inesperado al verificar SSL de {dominio}:[/red] {e}")
         logging.error(f"Error SSL inesperado en {dominio}: {e}")
-
 
 # --- Consulta DNS ---
 def consultar_registros(dominio, tipo_registro, resolver):
@@ -746,4 +773,5 @@ def menuprincipal():
 if __name__ == "__main__":
     bcinematico("ByMakaveli")
     menuprincipal()
+
 
